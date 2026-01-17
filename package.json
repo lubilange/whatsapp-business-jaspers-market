@@ -1,32 +1,40 @@
 {
-  "name": "jaspers-market",
+  "name": "federated-smart-health-wa",
   "version": "1.0.0",
-  "description": "Sample Whatsapp App - Jasper's Market",
+  "description": "WhatsApp-based Federated Health Management Platform for Clinical Triage and Patient Follow-up (Academic Project)",
   "keywords": [
     "whatsapp",
-    "webhook"
+    "webhook",
+    "healthcare",
+    "chatbot",
+    "federated-learning",
+    "hl7",
+    "fhir",
+    "clinical-triage"
   ],
-  "homepage": "https://github.com/fbsamples/whatsapp-business-jaspers-market#readme",
+  "homepage": "https://github.com/lubilange/federated-smart-health-wa#readme",
   "bugs": {
-    "url": "https://github.com/fbsamples/whatsapp-business-jaspers-market/issues"
+    "url": "https://github.com/lubilange/federated-smart-health-wa/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fbsamples/whatsapp-business-jaspers-market.git"
+    "url": "git+https://github.com/lubilange/federated-smart-health-wa.git"
   },
-  "license": "BSD",
-  "author": "Meta",
+  "license": "BSD-3-Clause",
+  "author": "Ange Lubila – FederatedSmartHealth Student Project (based on Meta Jasper's Market sample)",
   "type": "commonjs",
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "test": "echo no tests yet!"
+    "dev": "node app.js",
+    "test": "echo \"No tests defined yet\""
   },
   "dependencies": {
     "body-parser": "^1.20.2",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "facebook-nodejs-business-sdk": "^23.0.1",
-    "redis": "^5.8.2"
+    "redis": "^5.8.2",
+    "uuid": "^9.0.1"
   }
 }
