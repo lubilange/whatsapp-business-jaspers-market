@@ -1,111 +1,75 @@
-/**
- * Copyright 2021-present, Facebook, Inc. All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree.
- */
-
 "use strict";
 
-const crypto = require('crypto');
-
+const express = require('express');
 const { urlencoded, json } = require('body-parser');
 require('dotenv').config();
-const express = require('express');
 
-const config = require('./services/config');
-const Conversation = require('./services/conversation');
-const Message = require('./services/message');
 const app = express();
 
-// Parse application/x-www-form-urlencoded
-app.use(
-  urlencoded({
-    extended: true
-  })
-);
+// Middleware pour parser les messages WhatsApp
+app.use(urlencoded({ extended: true }));
+app.use(json());
 
-// Parse application/json. Verify that callback came from Facebook
-app.use(json({ verify: verifyRequestSignature }));
+// --- Stockage simple en mémoire pour suivre la conversation des patients ---
+const patientSessions = {}; // { phoneNumber: [messages] }
 
-// Handle webhook verification handshake
-app.get("/webhook", function (req, res) {
-  if (
-    req.query["hub.mode"] != "subscribe" ||
-    req.query["hub.verify_token"] != config.verifyToken
-  ) {
+// --- Webhook verification pour Meta ---
+app.get("/webhook", (req, res) => {
+  if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === process.env.VERIFY_TOKEN) {
+    res.send(req.query["hub.challenge"]);
+  } else {
     res.sendStatus(403);
-    return;
   }
-
-  res.send(req.query["hub.challenge"]);
 });
 
-// Handle incoming messages
-app.post('/webhook', (req, res) => {
-  console.log(req.body);
-
+// --- Réception des messages WhatsApp ---
+app.post("/webhook", (req, res) => {
   if (req.body.object === "whatsapp_business_account") {
     req.body.entry.forEach(entry => {
       entry.changes.forEach(change => {
         const value = change.value;
-        if (value) {
-          const senderPhoneNumberId = value.metadata.phone_number_id;
+        if (value.messages) {
+          value.messages.forEach(msg => {
+            const from = msg.from;
+            const text = msg.text?.body || "";
 
-          if (value.statuses) {
-            value.statuses.forEach(status => {
-              // Handle message status updates
-              Conversation.handleStatus(senderPhoneNumberId, status);
-            });
-          }
+            // Initialiser la session si nouveau patient
+            if (!patientSessions[from]) patientSessions[from] = [];
+            patientSessions[from].push(text);
 
-          if (value.messages) {
-            value.messages.forEach(rawMessage => {
-              // Respond to message
-              Conversation.handleMessage(senderPhoneNumberId, rawMessage);
-            });
-          }
+            // --- Logique santé simple ---
+            let reply = `Merci pour votre message: "${text}".\n`;
+
+            // Exemple de red-flag : fièvre ou douleur
+            if (/fièvre|douleur|mal/i.test(text)) {
+              reply += "⚠️ Attention : vos symptômes pourraient nécessiter un suivi médical.";
+            } else {
+              reply += `Vous avez envoyé ${patientSessions[from].length} message(s).`;
+            }
+
+            console.log(`Réponse à ${from}: ${reply}`);
+
+            // Ici, tu enverrais la réponse via l'API WhatsApp
+            // ex: sendMessage(from, reply);
+          });
         }
       });
     });
   }
 
-  res.status(200).send('EVENT_RECEIVED');
+  res.status(200).send("EVENT_RECEIVED");
 });
 
-// Default route for health check
-app.get('/', (req, res) => {
+// --- Health check simple ---
+app.get("/", (req, res) => {
   res.json({
-    message: 'Jasper\'s Market Server is running',
-    endpoints: [
-      'POST /webhook - WhatsApp webhook endpoint'
-    ]
+    message: "FederatedSmartHealth WhatsApp Server is running",
+    endpoints: ["POST /webhook"]
   });
 });
 
-// Check if all environment variables are set
-config.checkEnvVariables();
-
-// Verify that the callback came from Facebook.
-function verifyRequestSignature(req, res, buf) {
-  let signature = req.headers["x-hub-signature-256"];
-
-  if (!signature) {
-    console.warn(`Couldn't find "x-hub-signature-256" in headers.`);
-  } else {
-    let elements = signature.split("=");
-    let signatureHash = elements[1];
-    let expectedHash = crypto
-      .createHmac("sha256", config.appSecret)
-      .update(buf)
-      .digest("hex");
-    if (signatureHash != expectedHash) {
-      throw new Error("Couldn't validate the request signature.");
-    }
-  }
-}
-
-
-var listener = app.listen(config.port, () => {
-  console.log(`The app is listening on port ${listener.address().port}`);
+// --- Lancement du serveur ---
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
 });
